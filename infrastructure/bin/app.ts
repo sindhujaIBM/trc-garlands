@@ -2,6 +2,7 @@
 import * as cdk from 'aws-cdk-lib';
 import { DatabaseStack } from '../lib/stacks/database-stack';
 import { StorageStack } from '../lib/stacks/storage-stack';
+import { LambdaStack } from '../lib/stacks/lambda-stack';
 import { ApiStack } from '../lib/stacks/api-stack';
 import { EventsStack } from '../lib/stacks/events-stack';
 
@@ -19,10 +20,17 @@ const stage = app.node.tryGetContext('stage') ?? 'dev';
 const database = new DatabaseStack(app, `TrcDatabase-${stage}`, { env, stage });
 const storage = new StorageStack(app, `TrcStorage-${stage}`, { env, stage });
 
+const lambdas = new LambdaStack(app, `TrcLambda-${stage}`, {
+  env,
+  stage,
+  tables: database.tables,
+});
+
 const api = new ApiStack(app, `TrcApi-${stage}`, {
   env,
   stage,
   tables: database.tables,
+  functions: lambdas.functions,
 });
 
 new EventsStack(app, `TrcEvents-${stage}`, {
