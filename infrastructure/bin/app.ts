@@ -29,7 +29,6 @@ const lambdas = new LambdaStack(app, `TrcLambda-${stage}`, {
 const api = new ApiStack(app, `TrcApi-${stage}`, {
   env,
   stage,
-  tables: database.tables,
   functions: lambdas.functions,
 });
 

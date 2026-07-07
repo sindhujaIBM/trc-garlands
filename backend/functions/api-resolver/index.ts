@@ -2,6 +2,7 @@ import type { AppSyncResolverEvent } from 'aws-lambda';
 import { QueryCommand, GetCommand } from '@aws-sdk/lib-dynamodb';
 import { ddb } from '../../shared/clients/dynamo.js';
 import { TABLES } from '../../shared/constants/index.js';
+import { getCaller, requireAdmin, requireCustomer } from '../../shared/auth/identity.js';
 
 /**
  * api-resolver — AppSync resolver for read queries.
@@ -23,18 +24,18 @@ export const handler = async (
       return getProduct(args as { slug: string });
 
     case 'ordersByStatus':
+      requireAdmin(event);
       return ordersByStatus(args as { status: string; limit?: number; nextToken?: string });
 
     case 'ordersByMonth':
+      requireAdmin(event);
       return ordersByMonth(args as { month: string });
 
     case 'myOrders':
-      // TODO: query GSI2 with CUSTOMER#<customerId> from event.identity (Cognito sub)
-      return { items: [], nextToken: null };
+      return myOrders(requireCustomer(event).customerId!, args as { limit?: number });
 
     case 'getOrder':
-      // TODO: GetItem + ownership check (customer owns order OR admin caller)
-      return null;
+      return getOrder(event, args as { orderId: string });
 
     default:
       throw new Error(`Unknown field: ${event.info.fieldName}`);
@@ -85,6 +86,40 @@ async function ordersByStatus(args: { status: string; limit?: number; nextToken?
     })
   );
   return { items: result.Items ?? [], nextToken: encodeToken(result.LastEvaluatedKey) };
+}
+
+async function myOrders(customerId: string, args: { limit?: number }) {
+  const result = await ddb.send(
+    new QueryCommand({
+      TableName: TABLES.orders,
+      IndexName: 'GSI2',
+      KeyConditionExpression: 'GSI2PK = :pk',
+      ExpressionAttributeValues: { ':pk': `CUSTOMER#${customerId}` },
+      ScanIndexForward: false, // newest first
+      Limit: args.limit ?? 20,
+    })
+  );
+  return { items: result.Items ?? [], nextToken: null };
+}
+
+async function getOrder(
+  event: AppSyncResolverEvent<Record<string, unknown>>,
+  args: { orderId: string }
+) {
+  const caller = getCaller(event);
+  const result = await ddb.send(
+    new GetCommand({
+      TableName: TABLES.orders,
+      Key: { PK: `ORDER#${args.orderId}`, SK: 'METADATA' },
+    })
+  );
+  const order = result.Item;
+  if (!order) return null;
+  // Ownership check: customer owns it, or caller is admin
+  if (!caller.isAdmin && order.customerId !== caller.customerId) {
+    throw new Error('Unauthorized');
+  }
+  return order;
 }
 
 async function ordersByMonth(args: { month: string }) {

@@ -1,6 +1,7 @@
 import * as cdk from 'aws-cdk-lib';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
+import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
 import { NodejsFunction, type NodejsFunctionProps } from 'aws-cdk-lib/aws-lambda-nodejs';
 import * as path from 'node:path';
 import { Construct } from 'constructs';
@@ -16,6 +17,8 @@ export interface TrcFunctions {
   quoteEngine: NodejsFunction;
   aiChatHandler: NodejsFunction;
   apiResolver: NodejsFunction;
+  authorizer: NodejsFunction;
+  authHandler: NodejsFunction;
 }
 
 const BACKEND = path.join(__dirname, '../../../backend/functions');
@@ -92,10 +95,53 @@ export class LambdaStack extends cdk.Stack {
     tables.products.grantReadData(apiResolver);
     tables.customers.grantReadData(apiResolver);
 
+    // ── Auth (MaidLink pattern: Google sign-in → 15-min session JWT) ──
+    const jwtSecret = new secretsmanager.Secret(this, 'JwtSecret', {
+      secretName: `${stage}-trc-jwt-secret`,
+      description: 'HS256 signing secret for session JWTs',
+      generateSecretString: { passwordLength: 64, excludePunctuation: true },
+    });
+
+    // TODO: create the OAuth client in Google Cloud Console and pass via
+    // `cdk deploy --context googleClientId=...` (or set a default here)
+    const googleClientId = this.node.tryGetContext('googleClientId') ?? '';
+    const adminEmails =
+      this.node.tryGetContext('adminEmails') ?? 'sindhujakalisrinivasan@gmail.com';
+
+    const authorizer = new NodejsFunction(this, 'Authorizer', {
+      ...defaults,
+      functionName: `${stage}-trc-authorizer`,
+      entry: path.join(BACKEND, 'authorizer/index.ts'),
+      timeout: cdk.Duration.seconds(5),
+      environment: { ...defaults.environment, JWT_SECRET_ARN: jwtSecret.secretArn },
+    });
+    jwtSecret.grantRead(authorizer);
+
+    const authHandler = new NodejsFunction(this, 'AuthHandler', {
+      ...defaults,
+      functionName: `${stage}-trc-auth-handler`,
+      entry: path.join(BACKEND, 'auth-handler/index.ts'),
+      environment: {
+        ...defaults.environment,
+        JWT_SECRET_ARN: jwtSecret.secretArn,
+        GOOGLE_CLIENT_ID: googleClientId,
+        ADMIN_EMAILS: adminEmails,
+      },
+    });
+    jwtSecret.grantRead(authHandler);
+    tables.customers.grantReadWriteData(authHandler);
+
     // TODO: notification-sender (EventBridge target), payment-handler (Stripe
     // webhook via Lambda URL or API GW), invoice-generator — added with the
     // Step Functions order lifecycle.
 
-    this.functions = { orderProcessor, quoteEngine, aiChatHandler, apiResolver };
+    this.functions = {
+      orderProcessor,
+      quoteEngine,
+      aiChatHandler,
+      apiResolver,
+      authorizer,
+      authHandler,
+    };
   }
 }

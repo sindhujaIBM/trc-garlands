@@ -1,5 +1,6 @@
 # TRC Garlands — AppSync GraphQL schema (MVP)
-# Auth: @aws_api_key = public catalog reads; @aws_cognito_user_pools = customer/admin
+# Auth: API key = public (catalog, inquiry, chat, sign-in);
+#       Lambda authorizer = session JWT (customer + admin, minted via signInWithGoogle)
 
 type Query {
   # Public catalog
@@ -19,6 +20,7 @@ type Mutation {
   # Public
   submitInquiry(input: InquiryInput!): InquiryResult!
   sendChatMessage(sessionId: ID, message: String!): ChatResponse!
+  signInWithGoogle(idToken: String!): AuthSession!
 
   # Customer
   createOrder(input: CreateOrderInput!): Order!
@@ -141,6 +143,15 @@ type ChatResponse {
   sessionId: ID!
   reply: String!
   escalated: Boolean!
+}
+
+type AuthSession {
+  token: String!
+  expiresAt: AWSDateTime!
+  customerId: ID!
+  name: String!
+  email: String!
+  isAdmin: Boolean!
 }
 
 # ── Inputs ───────────────────────────────────────────────

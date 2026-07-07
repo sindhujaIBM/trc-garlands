@@ -3,6 +3,7 @@ import { PutCommand } from '@aws-sdk/lib-dynamodb';
 import { ulid } from 'ulid';
 import { ddb } from '../../shared/clients/dynamo.js';
 import { TABLES } from '../../shared/constants/index.js';
+import { requireAdmin, requireCustomer } from '../../shared/auth/identity.js';
 import type { Order, OrderStatus, OrderType, GarlandItem } from '../../shared/types/index.js';
 
 interface CreateOrderArgs {
@@ -46,7 +47,7 @@ export const handler = async (event: AppSyncResolverEvent<Args>): Promise<unknow
     case 'createOrder':
       return createOrder(event as AppSyncResolverEvent<CreateOrderArgs>);
     case 'updateOrderStatus':
-      return updateOrderStatus(event.arguments as UpdateOrderStatusArgs);
+      return updateOrderStatus(event, event.arguments as UpdateOrderStatusArgs);
     default:
       throw new Error(`Unknown field: ${event.info.fieldName}`);
   }
@@ -96,20 +97,26 @@ async function submitInquiry(args: SubmitInquiryArgs) {
 }
 
 async function createOrder(event: AppSyncResolverEvent<CreateOrderArgs>): Promise<Order> {
+  const caller = requireCustomer(event); // customerId from session JWT
   const orderId = ulid();
   const { input } = event.arguments;
 
   // TODO: validate eventDate is in the future and beyond product leadTimeDays
   // TODO: load products from trc-products, verify isActive, compute unitPrice
   // TODO: invoke quote-engine for pricingSnapshot + riskTags
-  // TODO: resolve customerId from event.identity (Cognito sub → trc-customers)
-  // TODO: PutItem with GSI keys; emit order.created (starts Step Functions)
+  // TODO: PutItem with GSI keys (GSI2PK = CUSTOMER#<caller.customerId>);
+  //       emit order.created (starts Step Functions)
 
-  throw new Error(`Not implemented — order ${orderId} for ${input.orderType} not created`);
+  throw new Error(
+    `Not implemented — order ${orderId} for ${input.orderType} by ${caller.customerId} not created`
+  );
 }
 
-async function updateOrderStatus(args: UpdateOrderStatusArgs): Promise<Order> {
-  // TODO: verify caller is in admin pool (event.identity)
+async function updateOrderStatus(
+  event: AppSyncResolverEvent<Args>,
+  args: UpdateOrderStatusArgs
+): Promise<Order> {
+  requireAdmin(event);
   // TODO: UpdateCommand: status + GSI1PK, append note to muniNotes
   // TODO: status → COMPLETED triggers invoice + balance payment (Step Functions)
   throw new Error(`Not implemented — cannot set ${args.orderId} to ${args.status}`);
