@@ -1,0 +1,49 @@
+name: Deploy Backend
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'infrastructure/**'
+      - 'backend/**'
+      - '.github/workflows/deploy-backend.yml'
+
+permissions:
+  id-token: write # OIDC → AWS
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Build + test
+        run: |
+          npm run build --workspace @trc/backend --workspace @trc/infrastructure
+          npm test --workspace @trc/backend
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ca-west-1
+
+      - name: CDK diff
+        working-directory: infrastructure
+        run: npx cdk diff --context stage=prod || true
+
+      - name: CDK deploy
+        working-directory: infrastructure
+        run: npx cdk deploy --all --context stage=prod --require-approval never
+
+      # TODO: integration tests against staging AppSync endpoint

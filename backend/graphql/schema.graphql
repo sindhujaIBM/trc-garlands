@@ -1,0 +1,171 @@
+# TRC Garlands — AppSync GraphQL schema (MVP)
+# Auth: @aws_api_key = public catalog reads; @aws_cognito_user_pools = customer/admin
+
+type Query {
+  # Public catalog
+  listProducts(category: ProductCategory, limit: Int, nextToken: String): ProductConnection!
+  getProduct(slug: String!): Product
+
+  # Customer (Cognito)
+  myOrders(limit: Int, nextToken: String): OrderConnection!
+  getOrder(orderId: ID!): Order
+
+  # Admin (Cognito admin pool)
+  ordersByStatus(status: OrderStatus!, limit: Int, nextToken: String): OrderConnection!
+  ordersByMonth(month: String!): OrderConnection! # YYYY-MM
+}
+
+type Mutation {
+  # Public
+  submitInquiry(input: InquiryInput!): InquiryResult!
+  sendChatMessage(sessionId: ID, message: String!): ChatResponse!
+
+  # Customer
+  createOrder(input: CreateOrderInput!): Order!
+
+  # Admin
+  updateOrderStatus(orderId: ID!, status: OrderStatus!, note: String): Order!
+}
+
+type Subscription {
+  onOrderStatusChanged(orderId: ID!): Order
+    @aws_subscribe(mutations: ["updateOrderStatus"])
+}
+
+# ── Enums ────────────────────────────────────────────────
+
+enum OrderStatus {
+  INQUIRY
+  QUOTED
+  DEPOSIT_PENDING
+  DEPOSIT_PAID
+  FLOWER_SOURCING
+  IN_PRODUCTION
+  READY
+  COMPLETED
+  CANCELLED
+  REFUNDED
+}
+
+enum OrderType {
+  WEDDING
+  POOJA
+  TEMPLE
+  GRADUATION
+  GENERAL
+}
+
+enum ProductCategory {
+  GARLAND
+  VENI
+  POOJA_SET
+  DECORATION
+}
+
+enum DeliveryMethod {
+  PICKUP
+  DELIVERY
+}
+
+# ── Types ────────────────────────────────────────────────
+
+type Product {
+  productId: ID!
+  name: String!
+  slug: String!
+  category: ProductCategory!
+  occasion: [String!]!
+  basePrice: Float!
+  pricingUnit: String!
+  primaryFlowers: [String!]!
+  leadTimeDays: Int!
+  isActive: Boolean!
+  photos: [ProductPhoto!]
+  aiGeneratedDescription: String
+}
+
+type ProductPhoto {
+  cloudFrontUrl: String!
+  isPrimary: Boolean!
+}
+
+type ProductConnection {
+  items: [Product!]!
+  nextToken: String
+}
+
+type Order {
+  orderId: ID!
+  customerId: ID!
+  status: OrderStatus!
+  orderType: OrderType!
+  eventDate: AWSDate!
+  deliveryMethod: DeliveryMethod!
+  garlandItems: [GarlandItem!]!
+  pricingSnapshot: PricingSnapshot!
+  depositAmount: Float
+  balanceAmount: Float
+  invoiceUrl: String
+  createdAt: AWSDateTime!
+}
+
+type GarlandItem {
+  productId: ID!
+  length: Float
+  flowerTypes: [String!]!
+  colors: [String!]!
+  qty: Int!
+  unitPrice: Float!
+  subtotal: Float!
+}
+
+type PricingSnapshot {
+  basePrice: Float!
+  seasonalSurcharge: Float!
+  rushSurcharge: Float!
+  total: Float!
+  currency: String!
+}
+
+type OrderConnection {
+  items: [Order!]!
+  nextToken: String
+}
+
+type InquiryResult {
+  inquiryId: ID!
+  message: String!
+}
+
+type ChatResponse {
+  sessionId: ID!
+  reply: String!
+  escalated: Boolean!
+}
+
+# ── Inputs ───────────────────────────────────────────────
+
+input InquiryInput {
+  name: String!
+  email: String
+  phone: String
+  occasion: String!
+  eventDate: AWSDate
+  message: String!
+}
+
+input CreateOrderInput {
+  orderType: OrderType!
+  eventDate: AWSDate!
+  deliveryMethod: DeliveryMethod!
+  deliveryAddress: String
+  items: [GarlandItemInput!]!
+}
+
+input GarlandItemInput {
+  productId: ID!
+  length: Float
+  flowerTypes: [String!]!
+  colors: [String!]!
+  qty: Int!
+}

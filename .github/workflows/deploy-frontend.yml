@@ -1,0 +1,34 @@
+name: Deploy Frontend
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/deploy-frontend.yml'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Lint + typecheck
+        run: |
+          npm run lint --workspace @trc/frontend
+          npm run typecheck --workspace @trc/frontend
+
+      - name: Build
+        run: npm run build --workspace @trc/frontend
+
+      # Amplify Hosting auto-deploys on main push once the app is connected
+      # to this repo. This job acts as a pre-deploy gate.
+      # TODO: CloudFront invalidation step after Amplify deploy if needed.
