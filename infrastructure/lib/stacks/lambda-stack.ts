@@ -76,12 +76,19 @@ export class LambdaStack extends cdk.Stack {
     tables.chatSessions.grantReadWriteData(aiChatHandler);
     tables.products.grantReadData(aiChatHandler);
     tables.seasonalEvents.grantReadData(aiChatHandler);
-    // Specific model ARNs, not bedrock:* (§8)
+    // Specific model ARNs, not bedrock:* (§8). Claude isn't natively hosted
+    // in ca-west-1, so the handler calls the `global.anthropic.claude-haiku-4-5`
+    // cross-region inference profile — verified via `aws bedrock
+    // get-inference-profile`, which requires permission on both the
+    // inference-profile resource itself and the underlying foundation
+    // model ARNs it routes to (returned by that same call).
     aiChatHandler.addToRolePolicy(
       new iam.PolicyStatement({
         actions: ['bedrock:InvokeModel'],
         resources: [
-          `arn:aws:bedrock:${this.region}::foundation-model/anthropic.claude-3-haiku-*`,
+          `arn:aws:bedrock:${this.region}:${this.account}:inference-profile/global.anthropic.claude-haiku-4-5-*`,
+          `arn:aws:bedrock:${this.region}::foundation-model/anthropic.claude-haiku-4-5-*`,
+          `arn:aws:bedrock:::foundation-model/anthropic.claude-haiku-4-5-*`,
         ],
       })
     );
