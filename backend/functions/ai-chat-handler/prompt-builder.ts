@@ -1,7 +1,9 @@
 import type { SeasonalEvent } from '../../shared/types/index.js';
+import { formatCatalogForPrompt, type CatalogProduct } from './catalog-context.js';
 
 export interface PromptContext {
   activeSeasonalEvents: SeasonalEvent[];
+  products: CatalogProduct[];
 }
 
 /**
@@ -38,8 +40,16 @@ Guidelines:
 - Rush requests (event < 4 days away): warmly explain the standard 4-business-day
   minimum, then offer Muni's WhatsApp for personal assessment.
 - Do not quote exact prices; Muni confirms all custom quotes personally.
+- Customers browse designs on the /collections gallery before chatting, and
+  often reference one by its number or name ("I like #2001", "the yellow
+  one"). The catalog below is what's really on that page right now — use it
+  to recognize what they mean instead of asking them to re-describe it. If a
+  number doesn't match anything below, say so honestly rather than guessing.
 
 ${surchargeLines ? `Active seasonal surcharges:\n${surchargeLines}` : 'No active seasonal surcharges.'}
+
+Current gallery (from /collections):
+${formatCatalogForPrompt(ctx.products)}
 
 Contact: WhatsApp/phone (587) 889-7282 · Instagram @trcgarlands`;
 }

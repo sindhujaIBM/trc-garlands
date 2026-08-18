@@ -3,6 +3,7 @@ import { ulid } from 'ulid';
 import { buildSystemPrompt } from './prompt-builder.js';
 import { parseIntents } from './intent-parser.js';
 import { invokeChatModel } from './bedrock-client.js';
+import { fetchActiveProducts } from './catalog-context.js';
 
 interface SendChatMessageArgs {
   sessionId?: string;
@@ -26,7 +27,8 @@ export const handler = async (
 
   // TODO: load session from trc-chat-sessions (last 20 messages)
   // TODO: load active seasonal events + surcharges for prompt context
-  const systemPrompt = buildSystemPrompt({ activeSeasonalEvents: [] });
+  const products = await fetchActiveProducts();
+  const systemPrompt = buildSystemPrompt({ activeSeasonalEvents: [], products });
 
   const reply = await invokeChatModel({
     system: systemPrompt,
