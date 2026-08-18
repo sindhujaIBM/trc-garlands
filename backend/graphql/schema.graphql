@@ -58,10 +58,13 @@ enum OrderType {
 }
 
 enum ProductCategory {
-  GARLAND
-  VENI
-  POOJA_SET
-  DECORATION
+  WEDDING
+  CHRYSANTHEMUM
+  ROSE
+  CARNATION
+  ACCESSORY
+  FRUIT
+  BILLS
 }
 
 enum DeliveryMethod {

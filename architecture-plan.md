@@ -194,7 +194,7 @@ GSI1: EMAIL#<email>   GSI2: PHONE#<phone>
 ```
 PK: PRODUCT#<productId>   SK: METADATA
 
-  name, slug, category (GARLAND|VENI|POOJA_SET|DECORATION)
+  name, slug, category (WEDDING|CHRYSANTHEMUM|ROSE|CARNATION|ACCESSORY|FRUIT|BILLS)
   occasion[], basePrice (CAD), pricingUnit (PER_FOOT|PER_UNIT)
   primaryFlowers[], alternateFlowers[]
   leadTimeDays, availableSeasons[], isActive, isSeasonalOnly

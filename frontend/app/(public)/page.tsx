@@ -6,7 +6,7 @@ export default function HomePage() {
         Handcrafted flower garlands for weddings, poojas, and celebrations —
         made with love in Calgary.
       </p>
-      {/* TODO: hero, featured catalog items, testimonials */}
+      {/* TODO: hero, featured collections, testimonials */}
     </main>
   );
 }

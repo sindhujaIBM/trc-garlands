@@ -77,7 +77,14 @@ export interface Customer {
   tags: string[];
 }
 
-export type ProductCategory = 'GARLAND' | 'VENI' | 'POOJA_SET' | 'DECORATION';
+export type ProductCategory =
+  | 'WEDDING'
+  | 'CHRYSANTHEMUM'
+  | 'ROSE'
+  | 'CARNATION'
+  | 'ACCESSORY'
+  | 'FRUIT'
+  | 'BILLS';
 
 export interface Product {
   productId: string;
