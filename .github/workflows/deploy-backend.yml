@@ -15,7 +15,7 @@ permissions:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    environment: production
+    environment: dev
     steps:
       - uses: actions/checkout@v4
 
@@ -40,10 +40,10 @@ jobs:
 
       - name: CDK diff
         working-directory: infrastructure
-        run: npx cdk diff --context stage=prod || true
+        run: npx cdk diff --context stage=dev || true
 
       - name: CDK deploy
         working-directory: infrastructure
-        run: npx cdk deploy --all --context stage=prod --require-approval never
+        run: npx cdk deploy --all --context stage=dev --require-approval never
 
       # TODO: integration tests against staging AppSync endpoint
